@@ -5,6 +5,7 @@ CCPATH   ?=
 
 CFLAGS   ?=
 CFLAGS   += -O3
+CFLAGS   += -std=c++11
 CFLAGS   += -Wno-unused-result
 CFLAGS   += -I${CUDAPATH}/include
 

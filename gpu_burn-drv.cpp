@@ -376,7 +376,7 @@ int pollTemp(pid_t *p) {
 	if (!myPid) {
 		close(tempPipe[0]);
 		dup2(tempPipe[1], STDOUT_FILENO); // Stdout
-		execlp("nvidia-smi", "nvidia-smi", "-l", "5", "-q", "-d", "TEMPERATURE", NULL);
+		execlp("/usr/bin/tegrastats", NULL);
 		fprintf(stderr, "Could not invoke nvidia-smi, no temps available\n");
 		
 		exit(0);
@@ -400,14 +400,18 @@ void updateTemps(int handle, std::vector<int> *temps) {
 
 	data[curPos-1] = 0;
 
-	int tempValue;
+	float tempValue;
 	// FIXME: The syntax of this print might change in the future..
-	if (sscanf(data, "        GPU Current Temp            : %d C", &tempValue) == 1) {
-		//printf("read temp val %d\n", tempValue);
-		temps->at(gpuIter) = tempValue;
-		gpuIter = (gpuIter+1)%(temps->size());
-	} else if (!strcmp(data, "        Gpu                     : N/A"))
-		gpuIter = (gpuIter+1)%(temps->size()); // We rotate the iterator for N/A values as well
+
+	std::string sdata(data);
+	sdata = sdata.substr(sdata.find("GPU@") + 4);
+	sdata = sdata.substr(0, sdata.find_first_of(' '));
+	try {
+		temps->at(gpuIter) = (int)std::stof(sdata);
+	} catch (const std::exception &e) {
+		// Error in parsing - do nothing.
+	}
+	gpuIter = (gpuIter+1)%(temps->size());
 }
 
 void listenClients(std::vector<int> clientFd, std::vector<pid_t> clientPid, int runTime) {
@@ -568,8 +572,6 @@ void listenClients(std::vector<int> clientFd, std::vector<pid_t> clientPid, int 
 }
 
 template<class T> void launch(int runLength, bool useDoubles, bool useTensorCores) {
-	system("nvidia-smi -L");
-
 	// Initting A and B with random data
 	T *A = (T*) malloc(sizeof(T)*SIZE*SIZE);
 	T *B = (T*) malloc(sizeof(T)*SIZE*SIZE);
